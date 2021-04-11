@@ -1,0 +1,70 @@
+@using PumpMonitor.Domains
+@using System.Threading
+@using System.Net
+@using PumpMonitor.Core.Services
+
+@inject PriceChangesService PricesService
+@inject AppSettings Settings
+
+<h3>ChangesTable</h3>
+
+@if (_changes == null)
+{
+    <p>
+        <em>Loading...</em>
+    </p>
+}
+else
+{
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Instrument</th>
+            <th>Changes</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var change in _changes)
+        {
+            <tr>
+                <td>
+                    <a href="@MakeBinanceLink(change.Instrument)" target="_blank">
+                        @change.Instrument.Replace(Settings.BasicCurrency, "")
+                    </a>
+                </td>
+                <td>@change.Price %</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter]
+    public TimeFrame TimeFrame { get; set; }
+    
+    private IOrderedEnumerable<PriceChangedModel> _changes;
+    
+    private Timer _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        _changes = PricesService.GetSpot(TimeFrame);
+
+        _timer = new Timer(async _ =>
+        {
+            await InvokeAsync(() =>
+            {
+                _changes = PricesService.GetSpot(TimeFrame);
+                StateHasChanged();
+            });
+        }, null, 1000, 1000);
+    }
+
+    private string MakeBinanceLink(string instrument)
+    {
+        return $"https://www.binance.com/ru/trade/{instrument}?layout=pro";
+    }
+}
